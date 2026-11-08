@@ -260,7 +260,7 @@ class AntimateKeyboardService : InputMethodService() {
     }
 
     private fun tapFeedback() {
-        if (haptic) performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+        if (haptic) currentInputView?.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
         if (sound) {
             val audio = getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
             audio.playSoundEffect(android.view.SoundEffectConstants.CLICK)
