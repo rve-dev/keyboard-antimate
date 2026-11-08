@@ -28,8 +28,8 @@ import java.util.Locale
 
 class MainActivity : Activity() {
     private val prefs by lazy { getSharedPreferences(AntimatePrefs.FILE, Context.MODE_PRIVATE) }
-    private lateinit var sourceLabel: TextView
-    private lateinit var targetLabel: TextView
+    private lateinit var sourceLabel: LinearLayout
+    private lateinit var targetLabel: LinearLayout
     private lateinit var languages: List<LanguageOption>
     private val page = Color.rgb(32, 33, 36)
     private val card = Color.rgb(42, 43, 47)
@@ -235,7 +235,7 @@ class MainActivity : Activity() {
         })
     }
 
-    private fun settingRow(title: String, value: String, action: () -> Unit): TextView {
+    private fun settingRow(title: String, value: String, action: () -> Unit): LinearLayout {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(15), dp(13), dp(15), dp(13))
