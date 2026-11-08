@@ -7,5 +7,4 @@ object AntimatePrefs {
     const val SHOW_SUGGESTIONS = "show_suggestions"
     const val HAPTIC = "haptic"
     const val SOUND = "sound"
-    const val POPUP = "popup"
 }
