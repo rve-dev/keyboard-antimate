@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Antimate Keyboard</string>
+    <string name="keyboard_name">Antimate</string>
+    <string name="keyboard_subtype_ru">Russian</string>
+</resources>
