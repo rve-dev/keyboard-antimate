@@ -78,7 +78,7 @@ class AntimateKeyboardService : InputMethodService() {
             gravity = Gravity.CENTER
         }
         toolbar.addView(suggestions, LinearLayout.LayoutParams(0, dp(42), 1f))
-        toolbar.addView(makeKey("⚙", isAction = true), LinearLayout.LayoutParams(dp(44), dp(40)))
+        toolbar.addView(makeKey("⋮", isAction = true), LinearLayout.LayoutParams(dp(44), dp(40)))
         root.addView(toolbar, rowParams(44))
 
         val letterRows = listOf(
@@ -89,9 +89,9 @@ class AntimateKeyboardService : InputMethodService() {
         val symbolRows = listOf(
             listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0"),
             listOf("@", "#", "₽", "%", "&", "-", "+", "(", ")", "/"),
-            listOf("=\\<", "*", "\"", "'", ":", ";", "!", "?", "⌫")
+            listOf("=\\<", "*", "\" ", "'", ":", ";", "!", "?", "⌫")
         )
-        (if (symbols) symbolRows else letterRows).forEachIndexed { index, row ->
+        (if (symbols) symbolRows else letterRows).forEach { row ->
             val line = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER
@@ -113,8 +113,6 @@ class AntimateKeyboardService : InputMethodService() {
         bottom.addView(makeKey(if (symbols) "ABC" else "?123", isAction = true),
             LinearLayout.LayoutParams(0, dp(46), 1.35f).apply { setMargins(dp(2), dp(3), dp(2), dp(3)) })
         bottom.addView(makeKey(",", isAction = true),
-            LinearLayout.LayoutParams(0, dp(46), 0.8f).apply { setMargins(dp(2), dp(3), dp(2), dp(3)) })
-        bottom.addView(makeKey("☻", isAction = true),
             LinearLayout.LayoutParams(0, dp(46), 0.8f).apply { setMargins(dp(2), dp(3), dp(2), dp(3)) })
         bottom.addView(makeKey("Русский · English", isAction = true),
             LinearLayout.LayoutParams(0, dp(46), 4.2f).apply { setMargins(dp(2), dp(3), dp(2), dp(3)) })
@@ -142,9 +140,7 @@ class AntimateKeyboardService : InputMethodService() {
         stateListAnimator = null
         setPadding(0, 0, 0, 0)
         setOnClickListener {
-            if (haptic) {
-                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
-            }
+            if (haptic) performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
             if (sound) {
                 val audio = getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
                 audio.playSoundEffect(android.view.SoundEffectConstants.CLICK)
@@ -162,12 +158,11 @@ class AntimateKeyboardService : InputMethodService() {
                 else connection.deleteSurroundingText(1, 0)
             }
             "↵" -> connection.commitText("\n", 1)
-            "⚙" -> {
+            "⋮" -> {
                 val intent = android.content.Intent(this, MainActivity::class.java)
                 intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                 startActivity(intent)
             }
-            "☻" -> connection.commitText("🙂", 1)
             "?123" -> { symbols = true; recreateKeyboard() }
             "ABC" -> { symbols = false; recreateKeyboard() }
             "⇧" -> { shift = !shift; recreateKeyboard() }
@@ -193,9 +188,8 @@ class AntimateKeyboardService : InputMethodService() {
         connection.commitText(matchCase(word, replacement), 1)
     }
 
-    private fun matchCase(original: String, replacement: String): String {
-        return if (original.firstOrNull()?.isUpperCase() == true) replacement.replaceFirstChar { it.uppercase() } else replacement
-    }
+    private fun matchCase(original: String, replacement: String): String =
+        if (original.firstOrNull()?.isUpperCase() == true) replacement.replaceFirstChar { it.uppercase() } else replacement
 
     private fun refreshSuggestions() {
         if (!::suggestions.isInitialized) return
