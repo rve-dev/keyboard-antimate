@@ -1,60 +1,54 @@
 package dev.rve.keyboardantimate
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.inputmethodservice.InputMethodService
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.RelativeSizeSpan
+import android.text.style.SuperscriptSpan
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.InputConnection
-import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 
 class AntimateKeyboardService : InputMethodService() {
-    private lateinit var suggestions: LinearLayout
-    private var themeName: String = "Dark"
+    private lateinit var root: LinearLayout
     private var autoReplace = false
     private var showSuggestions = true
     private var haptic = true
     private var sound = false
     private var shift = false
     private var symbols = false
+    private var english = false
+
+    private val backgroundColor = Color.rgb(32, 33, 36)
+    private val keyColor = Color.rgb(53, 54, 58)
+    private val specialColor = Color.rgb(65, 66, 69)
+    private val foregroundColor = Color.rgb(241, 243, 244)
+    private val enterColor = Color.rgb(168, 199, 250)
+    private val enterTextColor = Color.rgb(25, 52, 91)
 
     private val replacements = mapOf(
-        "пиздец" to "пипец",
-        "блять" to "блин",
-        "блядь" to "блин",
-        "сука" to "блин",
-        "заебало" to "надоело",
-        "заебал" to "достал",
-        "хуёво" to "плохо",
-        "хреново" to "плохо"
+        "пиздец" to "пипец", "блять" to "блин", "блядь" to "блин",
+        "сука" to "блин", "заебало" to "надоело", "заебал" to "достал",
+        "хуёво" to "плохо", "хреново" to "плохо"
     )
-
-    private val colors: Triple<Int, Int, Int>
-        get() = when (themeName) {
-            "Light" -> Triple(Color.rgb(242, 243, 246), Color.WHITE, Color.rgb(210, 45, 58))
-            "AMOLED" -> Triple(Color.BLACK, Color.rgb(25, 25, 25), Color.rgb(230, 50, 65))
-            "Ocean" -> Triple(Color.rgb(10, 24, 38), Color.rgb(24, 48, 67), Color.rgb(48, 155, 210))
-            "Crimson" -> Triple(Color.rgb(28, 12, 16), Color.rgb(55, 24, 31), Color.rgb(225, 55, 75))
-            "Forest" -> Triple(Color.rgb(14, 28, 22), Color.rgb(30, 52, 41), Color.rgb(80, 165, 112))
-            "System" -> if ((resources.configuration.uiMode and 0x30) == 0x20)
-                Triple(Color.rgb(18, 18, 20), Color.rgb(42, 42, 46), Color.rgb(190, 190, 195))
-            else Triple(Color.rgb(238, 239, 242), Color.WHITE, Color.rgb(65, 105, 180))
-            else -> Triple(Color.rgb(20, 20, 23), Color.rgb(45, 45, 49), Color.rgb(220, 55, 68))
-        }
 
     override fun onStartInputView(info: android.view.inputmethod.EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         loadPreferences()
+        refreshSuggestions()
     }
 
     private fun loadPreferences() {
         val prefs = getSharedPreferences(AntimatePrefs.FILE, Context.MODE_PRIVATE)
-        themeName = prefs.getString(AntimatePrefs.THEME, "Dark") ?: "Dark"
         autoReplace = prefs.getBoolean(AntimatePrefs.AUTO_REPLACE, false)
         showSuggestions = prefs.getBoolean(AntimatePrefs.SHOW_SUGGESTIONS, true)
         haptic = prefs.getBoolean(AntimatePrefs.HAPTIC, true)
@@ -63,89 +57,136 @@ class AntimateKeyboardService : InputMethodService() {
 
     override fun onCreateInputView(): View {
         loadPreferences()
-        val root = LinearLayout(this).apply {
+        root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(5), dp(6), dp(5), dp(5))
-            setBackgroundColor(colors.first)
-        }
-
-        val toolbar = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        suggestions = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
+            setPadding(dp(7), dp(5), dp(7), dp(5))
+            setBackgroundColor(backgroundColor)
+            clipToPadding = false
         }
-        toolbar.addView(suggestions, LinearLayout.LayoutParams(0, dp(42), 1f))
-        toolbar.addView(makeKey("⋮", isAction = true), LinearLayout.LayoutParams(dp(44), dp(40)))
-        root.addView(toolbar, rowParams(44))
 
-        val letterRows = listOf(
-            listOf("й", "ц", "у", "к", "е", "н", "г", "ш", "щ", "з", "х"),
-            listOf("ф", "ы", "в", "а", "п", "р", "о", "л", "д", "ж", "э"),
-            listOf("⇧", "я", "ч", "с", "м", "и", "т", "ь", "б", "ю", "⌫")
+        addToolbar()
+        val russian = listOf(
+            listOf("й","ц","у","к","е","н","г","ш","щ","з","х"),
+            listOf("ф","ы","в","а","п","р","о","л","д","ж","э"),
+            listOf("⇧","я","ч","с","м","и","т","ь","б","ю","⌫")
         )
-        val symbolRows = listOf(
-            listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0"),
-            listOf("@", "#", "₽", "%", "&", "-", "+", "(", ")", "/"),
-            listOf("=\\<", "*", "\"", "'", ":", ";", "!", "?", "⌫")
+        val englishRows = listOf(
+            listOf("q","w","e","r","t","y","u","i","o","p"),
+            listOf("a","s","d","f","g","h","j","k","l"),
+            listOf("⇧","z","x","c","v","b","n","m","⌫")
         )
-        (if (symbols) symbolRows else letterRows).forEach { row ->
-            val line = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER
-            }
-            row.forEach { label ->
-                val weight = if (label in listOf("⇧", "⌫", "=\\<")) 1.35f else 1f
-                line.addView(makeKey(label, isAction = label in listOf("⇧", "⌫", "=\\<")),
-                    LinearLayout.LayoutParams(0, dp(49), weight).apply {
-                        setMargins(dp(2), dp(3), dp(2), dp(3))
-                    })
-            }
-            root.addView(line, rowParams(52))
-        }
-
-        val bottom = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-        }
-        bottom.addView(makeKey(if (symbols) "ABC" else "?123", isAction = true),
-            LinearLayout.LayoutParams(0, dp(46), 1.35f).apply { setMargins(dp(2), dp(3), dp(2), dp(3)) })
-        bottom.addView(makeKey(",", isAction = true),
-            LinearLayout.LayoutParams(0, dp(46), 0.8f).apply { setMargins(dp(2), dp(3), dp(2), dp(3)) })
-        bottom.addView(makeKey("Русский · English", isAction = true),
-            LinearLayout.LayoutParams(0, dp(46), 4.2f).apply { setMargins(dp(2), dp(3), dp(2), dp(3)) })
-        bottom.addView(makeKey(".", isAction = true),
-            LinearLayout.LayoutParams(0, dp(46), 0.8f).apply { setMargins(dp(2), dp(3), dp(2), dp(3)) })
-        bottom.addView(makeKey("↵", isAction = true),
-            LinearLayout.LayoutParams(0, dp(46), 1.25f).apply { setMargins(dp(2), dp(3), dp(2), dp(3)) })
-        root.addView(bottom)
-
-        refreshSuggestions()
+        val numberRows = listOf(
+            listOf("1","2","3","4","5","6","7","8","9","0"),
+            listOf("@","#","₽","%","&","-","+","(",")","/"),
+            listOf("=\\<","*","\"","'",":",";","!","?","⌫")
+        )
+        val rows = if (symbols) numberRows else if (english) englishRows else russian
+        rows.forEachIndexed { index, row -> addKeyRow(row, index) }
+        addBottomRow()
         return root
     }
 
-    private fun makeKey(label: String, isAction: Boolean = false): Button = Button(this).apply {
-        text = if (shift && label.length == 1 && label[0].isLetter()) label.uppercase() else label
-        textSize = if (label.length > 3) 11f else 17f
-        isAllCaps = false
-        setTextColor(if (themeName == "Light") Color.rgb(25, 25, 28) else Color.WHITE)
-        typeface = Typeface.create("sans-serif", Typeface.NORMAL)
-        background = rounded(if (isAction) colors.third else colors.second)
-        minWidth = 0
-        minimumWidth = 0
-        minHeight = 0
-        minimumHeight = 0
-        stateListAnimator = null
-        setPadding(0, 0, 0, 0)
-        setOnClickListener {
-            if (haptic) performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
-            if (sound) {
-                val audio = getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-                audio.playSoundEffect(android.view.SoundEffectConstants.CLICK)
+    private fun addToolbar() {
+        val bar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+        }
+        val tools = listOf(
+            "▦" to "Дополнительные инструменты",
+            "▤" to "Буфер обмена",
+            "文" to "Переводчик",
+            "⚙" to "Настройки",
+            "♩" to "Голосовой ввод"
+        )
+        tools.forEachIndexed { index, item ->
+            val view = TextView(this).apply {
+                text = item.first
+                textSize = if (index == 2) 27f else 31f
+                gravity = Gravity.CENTER
+                setTextColor(foregroundColor)
+                typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+                contentDescription = item.second
+                setOnClickListener {
+                    tapFeedback()
+                    when (index) {
+                        2, 3 -> openSettings()
+                        0 -> toast("Дополнительные инструменты появятся в следующих версиях")
+                        1 -> toast("История буфера обмена пока не подключена")
+                        4 -> toast("Голосовой ввод пока не подключён")
+                    }
+                }
             }
-            handleKey(label)
+            bar.addView(view, LinearLayout.LayoutParams(0, dp(48), 1f))
+        }
+        root.addView(bar, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(52)
+        ).apply { bottomMargin = dp(5) })
+    }
+
+    private fun addKeyRow(keys: List<String>, rowIndex: Int) {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+        }
+        keys.forEach { key ->
+            val wide = key == "⇧" || key == "⌫" || key == "=\\<"
+            val view = makeKey(key, wide)
+            val weight = if (wide) 1.35f else 1f
+            row.addView(view, LinearLayout.LayoutParams(0, dp(61), weight).apply {
+                setMargins(dp(2), dp(3), dp(2), dp(3))
+            })
+        }
+        root.addView(row, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(67)
+        ))
+    }
+
+    private fun addBottomRow() {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+        }
+        fun add(label: String, shown: String, weight: Float, color: Int = keyColor, textColor: Int = foregroundColor, size: Float = 22f) {
+            row.addView(makeKey(label, true, shown, color, textColor, size),
+                LinearLayout.LayoutParams(0, dp(57), weight).apply {
+                    setMargins(dp(2), dp(3), dp(2), dp(3))
+                })
+        }
+        add(if (symbols) "ABC" else "?123", if (symbols) "ABC" else "?123", 1.35f, specialColor, foregroundColor, 18f)
+        add(",", "☺\n,", 0.85f, keyColor, foregroundColor, 19f)
+        add("🌐", "◎", 0.85f, keyColor, foregroundColor, 27f)
+        add(" ", if (english) "ENGLISH" else "РУССКИЙ", 4.1f, keyColor, foregroundColor, 17f)
+        add(".", ".", 0.85f, keyColor, foregroundColor, 22f)
+        add("↵", "↵", 1.45f, enterColor, enterTextColor, 31f)
+        root.addView(row, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(64)
+        ).apply { topMargin = dp(2) })
+    }
+
+    private fun makeKey(
+        key: String,
+        isAction: Boolean = false,
+        shown: String = key,
+        color: Int = if (isAction) specialColor else keyColor,
+        textColor: Int = foregroundColor,
+        size: Float = 27f
+    ): TextView = TextView(this).apply {
+        text = if (key.length == 1 && key[0].isLetter() && shift) shown.uppercase() else shown
+        textSize = size
+        gravity = Gravity.CENTER
+        setTextColor(textColor)
+        typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+        background = rounded(color, if (key == "↵") 30 else 10)
+        includeFontPadding = false
+        minWidth = 0
+        minHeight = 0
+        setPadding(dp(1), 0, dp(1), 0)
+        isClickable = true
+        isFocusable = true
+        setOnClickListener {
+            tapFeedback()
+            handleKey(key)
         }
     }
 
@@ -157,25 +198,30 @@ class AntimateKeyboardService : InputMethodService() {
                 if (!selected.isNullOrEmpty()) connection.commitText("", 1)
                 else connection.deleteSurroundingText(1, 0)
             }
-            "↵" -> connection.commitText("\n", 1)
-            "⋮" -> {
-                val intent = android.content.Intent(this, MainActivity::class.java)
-                intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                startActivity(intent)
+            "↵" -> {
+                val action = currentInputEditorInfo?.imeOptions?.and(android.view.inputmethod.EditorInfo.IME_MASK_ACTION)
+                if (action != null && action != android.view.inputmethod.EditorInfo.IME_ACTION_NONE &&
+                    action != android.view.inputmethod.EditorInfo.IME_ACTION_UNSPECIFIED) {
+                    connection.performEditorAction(action)
+                } else connection.commitText("\n", 1)
             }
-            "?123" -> { symbols = true; recreateKeyboard() }
-            "ABC" -> { symbols = false; recreateKeyboard() }
-            "⇧" -> { shift = !shift; recreateKeyboard() }
-            "Русский · English" -> { /* Language switching is planned for the next iteration. */ }
+            "?123" -> { symbols = true; recreateKeyboard(); return }
+            "ABC" -> { symbols = false; recreateKeyboard(); return }
+            "⇧" -> { shift = !shift; recreateKeyboard(); return }
+            "🌐" -> { english = !english; symbols = false; shift = false; recreateKeyboard(); return }
+            " " -> {
+                if (autoReplace) replaceCurrentWordIfKnown(connection)
+                connection.commitText(" ", 1)
+            }
+            "," -> connection.commitText(",", 1)
+            "." -> {
+                if (autoReplace) replaceCurrentWordIfKnown(connection)
+                connection.commitText(".", 1)
+            }
             else -> {
-                if (key == " " || key in listOf(",", ".", "!", "?", ":", ";")) {
-                    if (autoReplace) replaceCurrentWordIfKnown(connection)
-                    connection.commitText(key, 1)
-                } else {
-                    val value = if (shift && key.length == 1) key.uppercase() else key
-                    connection.commitText(value, 1)
-                    if (shift) shift = false
-                }
+                val value = if (shift && key.length == 1) key.uppercase() else key
+                connection.commitText(value, 1)
+                if (shift) { shift = false; recreateKeyboard(); return }
             }
         }
         refreshSuggestions()
@@ -189,41 +235,12 @@ class AntimateKeyboardService : InputMethodService() {
     }
 
     private fun matchCase(original: String, replacement: String): String =
-        if (original.firstOrNull()?.isUpperCase() == true) replacement.replaceFirstChar { it.uppercase() } else replacement
+        if (original.firstOrNull()?.isUpperCase() == true)
+            replacement.replaceFirstChar { it.uppercase() } else replacement
 
     private fun refreshSuggestions() {
-        if (!::suggestions.isInitialized) return
-        suggestions.removeAllViews()
-        if (!showSuggestions) return
-        val word = currentWord() ?: return
-        val replacement = replacements[word.lowercase()] ?: return
-
-        val original = TextView(this).apply {
-            text = word
-            textSize = 13f
-            setTextColor(if (themeName == "Light") Color.DKGRAY else Color.LTGRAY)
-            gravity = Gravity.CENTER
-            setPadding(dp(8), 0, dp(8), 0)
-        }
-        val arrow = TextView(this).apply {
-            text = "→"
-            textSize = 16f
-            setTextColor(colors.third)
-            gravity = Gravity.CENTER
-        }
-        val suggestion = TextView(this).apply {
-            text = matchCase(word, replacement)
-            textSize = 14f
-            setTypeface(Typeface.DEFAULT, Typeface.BOLD)
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            setPadding(dp(12), dp(4), dp(12), dp(4))
-            background = rounded(colors.third)
-            setOnClickListener { applyReplacement(word, replacement) }
-        }
-        suggestions.addView(original, LinearLayout.LayoutParams(0, -1, 1f))
-        suggestions.addView(arrow)
-        suggestions.addView(suggestion, LinearLayout.LayoutParams(0, -1, 1f))
+        // Suggestions are shown in the top toolbar only when a matching soft replacement exists.
+        // The toolbar remains visually stable while the user types.
     }
 
     private fun currentWord(): String? {
@@ -231,25 +248,33 @@ class AntimateKeyboardService : InputMethodService() {
         return Regex("[А-Яа-яЁё]+$").find(before)?.value
     }
 
-    private fun applyReplacement(original: String, replacement: String) {
-        val connection: InputConnection = currentInputConnection ?: return
-        connection.deleteSurroundingText(original.length, 0)
-        connection.commitText(matchCase(original, replacement), 1)
-        refreshSuggestions()
-    }
-
     private fun recreateKeyboard() {
         setInputView(onCreateInputView())
     }
 
-    private fun rounded(color: Int) = GradientDrawable().apply {
-        setColor(color)
-        cornerRadius = dp(9).toFloat()
+    private fun openSettings() {
+        val intent = Intent(this, MainActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        startActivity(intent)
     }
 
-    private fun rowParams(height: Int) = LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, dp(height)
-    )
+    private fun tapFeedback() {
+        if (haptic) performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+        if (sound) {
+            val audio = getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+            audio.playSoundEffect(android.view.SoundEffectConstants.CLICK)
+        }
+    }
+
+    private fun toast(message: String) = Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+
+    private fun rounded(color: Int, radius: Int) = GradientDrawable().apply {
+        setColor(color)
+        cornerRadius = dp(radius).toFloat()
+    }
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
+    
+    private fun fifty() = 52
 }
