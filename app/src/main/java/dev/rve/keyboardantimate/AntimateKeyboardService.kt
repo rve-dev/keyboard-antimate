@@ -5,7 +5,6 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.inputmethodservice.InputMethodService
-import android.os.Build
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -21,7 +20,6 @@ class AntimateKeyboardService : InputMethodService() {
     private var showSuggestions = true
     private var haptic = true
     private var sound = false
-    private var popup = true
     private var shift = false
     private var symbols = false
 
@@ -61,7 +59,6 @@ class AntimateKeyboardService : InputMethodService() {
         showSuggestions = prefs.getBoolean(AntimatePrefs.SHOW_SUGGESTIONS, true)
         haptic = prefs.getBoolean(AntimatePrefs.HAPTIC, true)
         sound = prefs.getBoolean(AntimatePrefs.SOUND, false)
-        popup = prefs.getBoolean(AntimatePrefs.POPUP, true)
     }
 
     override fun onCreateInputView(): View {
@@ -136,7 +133,7 @@ class AntimateKeyboardService : InputMethodService() {
         textSize = if (label.length > 3) 11f else 17f
         isAllCaps = false
         setTextColor(if (themeName == "Light") Color.rgb(25, 25, 28) else Color.WHITE)
-        typeface = Typeface.DEFAULT
+        typeface = Typeface.create("sans-serif", Typeface.NORMAL)
         background = rounded(if (isAction) colors.third else colors.second)
         minWidth = 0
         minimumWidth = 0
@@ -145,7 +142,7 @@ class AntimateKeyboardService : InputMethodService() {
         stateListAnimator = null
         setPadding(0, 0, 0, 0)
         setOnClickListener {
-            if (haptic && Build.VERSION.SDK_INT >= View) {
+            if (haptic) {
                 performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
             }
             if (sound) {
@@ -248,8 +245,7 @@ class AntimateKeyboardService : InputMethodService() {
     }
 
     private fun recreateKeyboard() {
-        inputView = onCreateInputView()
-        setInputView(inputView)
+        setInputView(onCreateInputView())
     }
 
     private fun rounded(color: Int) = GradientDrawable().apply {
