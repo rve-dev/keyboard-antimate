@@ -72,7 +72,6 @@ class MainActivity : Activity() {
             "Show a softer alternative without changing your text.")
         addSwitch(root, "Key haptic feedback", AntimatePrefs.HAPTIC, true, "Use the device's keyboard vibration setting.")
         addSwitch(root, "Key sound", AntimatePrefs.SOUND, false, "Play a short sound when a key is pressed.")
-        addSwitch(root, "Key pop-up", AntimatePrefs.POPUP, true, "Show a visual preview above pressed keys.")
 
         section(root, "AI replacement")
         root.addView(TextView(this).apply {
