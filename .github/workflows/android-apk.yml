@@ -4,10 +4,12 @@ on:
   push:
     branches:
       - feature/android-keyboard-mvp
+      - argon-sandbox
   pull_request:
     branches:
       - main
       - feature/android-keyboard-mvp
+      - argon-sandbox
   workflow_dispatch:
 
 permissions:
