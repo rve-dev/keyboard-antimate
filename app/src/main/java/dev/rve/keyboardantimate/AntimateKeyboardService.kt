@@ -26,7 +26,8 @@ class AntimateKeyboardService : InputMethodService() {
     private var sound = false
     private var shift = false
     private var symbols = false
-    private var english = false
+    private var currentLayoutIndex = 0
+    private val activeLayout get() = AntimateLayouts.all[currentLayoutIndex.coerceIn(0, AntimateLayouts.all.lastIndex)]
 
     private val backgroundColor = Color.rgb(32, 33, 36)
     private val keyColor = Color.rgb(53, 54, 58)
@@ -66,22 +67,7 @@ class AntimateKeyboardService : InputMethodService() {
         }
 
         addToolbar()
-        val russian = listOf(
-            listOf("й","ц","у","к","е","н","г","ш","щ","з","х"),
-            listOf("ф","ы","в","а","п","р","о","л","д","ж","э"),
-            listOf("⇧","я","ч","с","м","и","т","ь","б","ю","⌫")
-        )
-        val englishRows = listOf(
-            listOf("q","w","e","r","t","y","u","i","o","p"),
-            listOf("a","s","d","f","g","h","j","k","l"),
-            listOf("⇧","z","x","c","v","b","n","m","⌫")
-        )
-        val numberRows = listOf(
-            listOf("1","2","3","4","5","6","7","8","9","0"),
-            listOf("@","#","₽","%","&","-","+","(",")","/"),
-            listOf("=\\<","*","\"","'",":",";","!","?","⌫")
-        )
-        val rows = if (symbols) numberRows else if (english) englishRows else russian
+        val rows = if (symbols) numberRows else activeLayout.rows
         rows.forEachIndexed { index, row -> addKeyRow(row, index) }
         addBottomRow()
         return root
@@ -156,7 +142,7 @@ class AntimateKeyboardService : InputMethodService() {
         add(if (symbols) "ABC" else "?123", if (symbols) "ABC" else "?123", 1.35f, specialColor, foregroundColor, 18f)
         add(",", "☺\n,", 0.85f, keyColor, foregroundColor, 19f)
         add("🌐", "◎", 0.85f, keyColor, foregroundColor, 27f)
-        add(" ", if (english) "ENGLISH" else "РУССКИЙ", 4.1f, keyColor, foregroundColor, 17f)
+        add(" ", activeLayout.spaceLabel, 4.1f, keyColor, foregroundColor, 17f)
         add(".", ".", 0.85f, keyColor, foregroundColor, 22f)
         add("↵", "↵", 1.45f, enterColor, enterTextColor, 31f)
         root.addView(row, LinearLayout.LayoutParams(
@@ -208,7 +194,7 @@ class AntimateKeyboardService : InputMethodService() {
             "?123" -> { symbols = true; recreateKeyboard(); return }
             "ABC" -> { symbols = false; recreateKeyboard(); return }
             "⇧" -> { shift = !shift; recreateKeyboard(); return }
-            "🌐" -> { english = !english; symbols = false; shift = false; recreateKeyboard(); return }
+            "🌐" -> { currentLayoutIndex = (currentLayoutIndex + 1) % AntimateLayouts.all.size; symbols = false; shift = false; recreateKeyboard(); return }
             " " -> {
                 if (autoReplace) replaceCurrentWordIfKnown(connection)
                 connection.commitText(" ", 1)
